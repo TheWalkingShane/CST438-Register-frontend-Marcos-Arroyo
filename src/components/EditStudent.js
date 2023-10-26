@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -10,10 +10,19 @@ import { SERVER_URL } from '../constants';
 const EditStudent = (props) => {
     const [open, setOpen] = useState(false);
     const [student, setStudent] = useState({
-        student_id: props.student.studentId,
-        name: props.student.name,
-        email: props.student.email
+        student_id: '',
+        name: '',
+        email: ''
     });
+    const [feedbackMessage, setFeedbackMessage] = useState('');
+
+    useEffect(() => {
+        setStudent({
+            student_id: props.student.studentId,
+            name: props.student.name,
+            email: props.student.email
+        });
+    }, [props.student]);
 
     const handleClickOpen = () => {
         setOpen(true);
@@ -40,18 +49,27 @@ const EditStudent = (props) => {
     };
 
     const editStudent = () => {
+        const token = sessionStorage.getItem("jwt");
         fetch(`${SERVER_URL}/student/${student.student_id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': token 
+            },
             body: JSON.stringify(student)
         })
         .then(res => {
             if (!res.ok) {
-                console.log('Error editing student:', res.status);
+                throw new Error('Network response was not ok');
             }
+            return res.json();
+        })
+        .then(data => {
+            setFeedbackMessage(data.message);
         })
         .catch(err => {
             console.error("Exception editing student:", err);
+            setFeedbackMessage("Error editing student.");
         });
     };
 
@@ -80,6 +98,7 @@ const EditStudent = (props) => {
                           name="email" 
                           onChange={handleChange} 
                       />
+                      {feedbackMessage && <p>{feedbackMessage}</p>}
                   </DialogContent>
                 <DialogActions>
                     <Button color="secondary" onClick={handleClose}>Cancel</Button>

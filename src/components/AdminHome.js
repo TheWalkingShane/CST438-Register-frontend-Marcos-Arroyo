@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { SERVER_URL } from '../constants';
 import AddStudent from './AddStudent';
 import EditStudent from './EditStudent';
-import Button from '@mui/material/Button';  // <-- Added for button styling
+import Button from '@mui/material/Button';
 
 const AdminHome = () => {
     const [students, setStudents] = useState([]);
+    const [feedbackMessage, setFeedbackMessage] = useState('');
 
     useEffect(() => {
         fetchStudents();
@@ -13,77 +14,84 @@ const AdminHome = () => {
 
     const fetchStudents = () => {
         fetch(`${SERVER_URL}/student`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
         .then(data => {
             setStudents(data);
         })
-        .catch(err => console.log(err));
+        .catch(err => {
+            console.error(err);
+            setFeedbackMessage("Error fetching students.");
+        });
     }
 
-    const dropStudent = (event) => {
-        const row_id = event.target.parentNode.parentNode.rowIndex - 1;
-        const s_id = students[row_id].studentId;
-  
+    const dropStudent = (studentId) => {
         if (window.confirm('Are you sure you want to drop the student?')) {
-            fetch(`${SERVER_URL}/student/${s_id}?force=yes`, { method: 'DELETE' })
+            fetch(`${SERVER_URL}/student/${studentId}?force=yes`, { method: 'DELETE' })
             .then(res => {
                 if (res.ok) {
                     fetchStudents();
                 } else {
                     console.log("Error dropping student with status:", res.status);
+                    setFeedbackMessage("Error dropping student.");
                 }
             })
-            .catch(err => console.log("Exception dropping student:", err));
+            .catch(err => {
+                console.error("Exception dropping student:", err);
+                setFeedbackMessage("Exception dropping student.");
+            });
         }
     };
 
     const headers = ['ID', 'Name', 'Email', 'Status', 'Status Code', '', ''];
 
-    if (students.length === 0) {
-        return (
-            <div>
-                <h3>No Students</h3>
-                <AddStudent />
-            </div>
-        );
-    } else { 
-        return (
-            <div> 
-                <div margin="auto">
-                    <h3>Student List</h3>
-                    <table className="Center">
-                        <thead>
+    return (
+        <div> 
+            <div margin="auto">
+                <h3>Student List</h3>
+                {feedbackMessage && <p>{feedbackMessage}</p>}
+                <table className="Center">
+                    <thead>
+                        <tr>
+                            {headers.map((s, idx) => (<th key={idx}>{s}</th>))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {students.length === 0 ? (
                             <tr>
-                                {headers.map((s, idx) => (<th key={idx}>{s}</th>))}
+                                <td colSpan={7}>No Students</td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {students.map((row,idx) => (
+                        ) : (
+                            students.map(({ studentId, name, email, statusCode, status }, idx) => (
                                 <tr key={idx}>
-                                    <td>{row.studentId}</td>
-                                    <td>{row.name}</td>
-                                    <td>{row.email}</td>
-                                    <td>{row.statusCode}</td>
-                                    <td>{row.status}</td>
+                                    <td>{studentId}</td>
+                                    <td>{name}</td>
+                                    <td>{email}</td>
+                                    <td>{statusCode}</td>
+                                    <td>{status}</td>
                                     <td>
                                         <Button 
                                             variant="outlined" 
                                             color="primary" 
-                                            onClick={dropStudent}
+                                            onClick={() => dropStudent(studentId)}
                                         >
                                             Drop
                                         </Button>
                                     </td>
-                                    <td><EditStudent student={row} onUpdate={fetchStudents} /></td>
+                                    <td><EditStudent student={{ studentId, name, email, statusCode, status }} onUpdate={fetchStudents} /></td>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    <AddStudent onClose={fetchStudents} />
-                </div>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+                <AddStudent onClose={fetchStudents} />
             </div>
-        );
-    }
+        </div>
+    );
 }
 
 export default AdminHome;

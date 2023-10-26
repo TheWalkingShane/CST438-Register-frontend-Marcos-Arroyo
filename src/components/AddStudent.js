@@ -10,6 +10,7 @@ import { SERVER_URL } from '../constants';
 function AddStudent(props) { 
   const [open, setOpen] = useState(false);
   const [student, setStudent] = useState({ name: '', email: '' });
+  const [feedbackMessage, setFeedbackMessage] = useState(''); // Feedback for the user
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -34,18 +35,30 @@ function AddStudent(props) {
   }
 
   const addStudent = () => {
+    // Extract the JWT token from the session storage
+    const token = sessionStorage.getItem("jwt");
+
     fetch(`${SERVER_URL}/student`, { 
         method: 'POST', 
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': token // Add the JWT token to the request header
+        },
         body: JSON.stringify(student)
     })
     .then(res => {
         if (!res.ok) {
-            console.log('Error adding student:', res.status);
+            throw new Error('Network response was not ok');
         }
+        return res.json(); // Assuming server responds with a json message
     })
-    .catch(err => {
-        console.error("Exception adding student:", err);
+    .then(data => {
+        // Show feedback message based on the response from the server
+        setFeedbackMessage(data.message);
+    })
+    .catch(error => {
+        console.error("Exception adding student:", error);
+        setFeedbackMessage("Error adding student.");
     })
   }
 
@@ -72,6 +85,7 @@ function AddStudent(props) {
                   name="email" 
                   onChange={handleChange}  
               /> 
+              {feedbackMessage && <p>{feedbackMessage}</p>} {/* Display feedback message if it exists */}
             </DialogContent>
             <DialogActions>
               <Button color="secondary" onClick={handleClose}>Cancel</Button>
